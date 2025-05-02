@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mexican Train Scorekeeper</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        /* Apply Inter font globally */
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f3f4f6; /* Light gray background */
+        }
+        /* Style for input fields */
+        input[type="text"], input[type="number"] {
+            @apply w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm;
+        }
+        /* Style for buttons */
+        button {
+            @apply px-4 py-2 rounded-md shadow-sm font-medium text-white transition duration-150 ease-in-out;
+        }
+        .btn-primary {
+            @apply bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500;
+        }
+        .btn-secondary {
+            @apply bg-gray-600 hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500;
+        }
+        .btn-danger {
+             @apply bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500;
+        }
+        /* Style for the score table */
+        th, td {
+            @apply px-4 py-2 text-sm text-center border border-gray-300;
+        }
+        th {
+            @apply bg-gray-200 font-semibold;
+        }
+        /* Hide elements */
+        .hidden {
+            display: none;
+        }
+        /* Center content */
+        .container {
+            @apply max-w-4xl mx-auto p-4 sm:p-6 lg:p-8;
+        }
+        /* Card styling */
+        .card {
+            @apply bg-white shadow-lg rounded-lg p-6 mb-6;
+        }
+        /* Responsive table container */
+        .table-container {
+            @apply overflow-x-auto;
+        }
+        /* Message box styling */
+        .message-box {
+            @apply mt-4 p-4 rounded-md;
+        }
+        .message-success {
+            @apply bg-green-100 border border-green-400 text-green-700;
+        }
+        .message-error {
+            @apply bg-red-100 border border-red-400 text-red-700;
+        }
+    </style>
+</head>
+<body class="antialiased">
+    <div class="container">
+        <h1 class="text-3xl font-bold text-center text-gray-800 mb-8">Mexican Train Dominoes Scorekeeper</h1>
+
+        <div id="setup-section" class="card">
+            <h2 class="text-xl font-semibold mb-4 text-gray-700">Game Setup</h2>
+            <div class="mb-4">
+                <label for="player-name" class="block text-sm font-medium text-gray-700 mb-1">Add Player Name:</label>
+                <div class="flex space-x-2">
+                    <input type="text" id="player-name" placeholder="Enter player name">
+                    <button id="add-player-btn" class="btn-primary whitespace-nowrap">Add Player</button>
+                </div>
+            </div>
+            <div id="player-list" class="mb-4 space-y-2">
+                <p class="text-sm text-gray-500">Players added will appear here.</p>
+                </div>
+            <button id="start-game-btn" class="btn-primary w-full sm:w-auto" disabled>Start Game (Min 2 Players)</button>
+            <div id="setup-message" class="message-box message-error hidden"></div>
+        </div>
+
+        <div id="game-section" class="card hidden">
+            <h2 class="text-xl font-semibold mb-2 text-gray-700">Round <span id="current-round">1</span></h2>
+            <p class="text-md mb-4 text-gray-600">Engine: <span id="current-engine">Double-12</span></p>
+
+            <h3 class="text-lg font-medium mb-3 text-gray-700">Enter Scores for this Round:</h3>
+            <div id="score-input-area" class="space-y-3 mb-4">
+                </div>
+            <button id="submit-round-btn" class="btn-primary w-full sm:w-auto">Submit Round Scores</button>
+            <div id="round-message" class="message-box message-error hidden"></div>
+        </div>
+
+        <div id="scoreboard-section" class="card hidden">
+            <h2 class="text-xl font-semibold mb-4 text-gray-700">Scoreboard</h2>
+            <div class="table-container">
+                <table class="w-full border-collapse border border-gray-300">
+                    <thead id="scoreboard-head">
+                        </thead>
+                    <tbody id="scoreboard-body">
+                        </tbody>
+                    <tfoot id="scoreboard-foot">
+                        </tfoot>
+                </table>
+            </div>
+        </div>
+
+        <div id="game-over-section" class="card hidden">
+            <h2 class="text-2xl font-bold text-center text-indigo-700 mb-4">🎉 Game Over! 🎉</h2>
+            <div id="winner-announcement" class="text-lg text-center text-gray-800 font-medium">
+                </div>
+             <button id="restart-game-btn" class="btn-secondary w-full sm:w-auto mt-6">Start New Game</button>
+        </div>
+
+    </div>
+
+    <script>
+        // --- Constants ---
+        const MAX_ROUNDS = 13; // For Double-12 set
+
+        // --- DOM Elements ---
+        const setupSection = document.getElementById('setup-section');
+        const gameSection = document.getElementById('game-section');
+        const scoreboardSection = document.getElementById('scoreboard-section');
+        const gameOverSection = document.getElementById('game-over-section');
+
+        const playerNameInput = document.getElementById('player-name');
+        const addPlayerBtn = document.getElementById('add-player-btn');
+        const playerListDiv = document.getElementById('player-list');
+        const startGameBtn = document.getElementById('start-game-btn');
+        const setupMessage = document.getElementById('setup-message');
+
+        const currentRoundSpan = document.getElementById('current-round');
+        const currentEngineSpan = document.getElementById('current-engine');
+        const scoreInputArea = document.getElementById('score-input-area');
+        const submitRoundBtn = document.getElementById('submit-round-btn');
+        const roundMessage = document.getElementById('round-message');
+
+        const scoreboardHead = document.getElementById('scoreboard-head');
+        const scoreboardBody = document.getElementById('scoreboard-body');
+        const scoreboardFoot = document.getElementById('scoreboard-foot');
+
+        const winnerAnnouncement = document.getElementById('winner-announcement');
+        const restartGameBtn = document.getElementById('restart-game-btn');
+
+        // --- Game State ---
+        let players = []; // Array of player objects: { name: string, scores: number[], total: number }
+        let currentRound = 0;
+        let gameActive = false;
+
+        // --- Utility Functions ---
+        function showMessage(element, message, isError = true) {
+            element.textContent = message;
+            element.classList.remove('hidden', 'message-error', 'message-success');
+            element.classList.add(isError ? 'message-error' : 'message-success');
+        }
+
+        function hideMessage(element) {
+            element.classList.add('hidden');
+            element.textContent = '';
+        }
+
+        function getEngineForRound(round) {
+            const doubleValue = 13 - round;
+            return doubleValue === 0 ? 'Blank' : doubleValue;
+        }
+
+        // --- Setup Functions ---
+        function addPlayer() {
+            const name = playerNameInput.value.trim();
+            hideMessage(setupMessage); // Hide previous messages
+
+            if (!name) {
+                showMessage(setupMessage, 'Player name cannot be empty.');
+                return;
+            }
+            if (players.some(p => p.name.toLowerCase() === name.toLowerCase())) {
+                 showMessage(setupMessage, `Player "${name}" already exists.`);
+                return;
+            }
+            if (players.length >= 8) { // Optional: Limit max players
+                 showMessage(setupMessage, 'Maximum number of players reached (8).');
+                return;
+            }
+
+            players.push({ name: name, scores: [], total: 0 });
+            playerNameInput.value = ''; // Clear input
+            renderPlayerList();
+            updateStartGameButton();
+            playerNameInput.focus(); // Keep focus on input for easy adding
+        }
+
+        function renderPlayerList() {
+            playerListDiv.innerHTML = ''; // Clear current list
+            if (players.length === 0) {
+                 playerListDiv.innerHTML = '<p class="text-sm text-gray-500">Players added will appear here.</p>';
+                 return;
+            }
+
+            const list = document.createElement('ul');
+            list.className = 'list-disc list-inside space-y-1';
+            players.forEach((player, index) => {
+                const listItem = document.createElement('li');
+                listItem.className = 'text-gray-700 flex justify-between items-center';
+                listItem.textContent = player.name;
+
+                // Add remove button for each player
+                const removeBtn = document.createElement('button');
+                removeBtn.textContent = 'Remove';
+                removeBtn.className = 'btn-danger text-xs px-2 py-1 ml-2';
+                removeBtn.onclick = () => removePlayer(index);
+                listItem.appendChild(removeBtn);
+
+                list.appendChild(listItem);
+            });
+            playerListDiv.appendChild(list);
+        }
+
+         function removePlayer(indexToRemove) {
+            players.splice(indexToRemove, 1); // Remove player from array
+            renderPlayerList();
+            updateStartGameButton();
+        }
+
+        function updateStartGameButton() {
+            startGameBtn.disabled = players.length < 2; // Need at least 2 players
+        }
+
+        // --- Game Logic Functions ---
+        function startGame() {
+            if (players.length < 2) {
+                 showMessage(setupMessage, 'You need at least 2 players to start the game.');
+                return;
+            }
+            gameActive = true;
+            currentRound = 1;
+            // Initialize scores array for each player for MAX_ROUNDS
+            players.forEach(p => {
+                p.scores = Array(MAX_ROUNDS).fill(null); // Use null to indicate round not played yet
+                p.total = 0;
+            });
+
+            setupSection.classList.add('hidden');
+            gameSection.classList.remove('hidden');
+            scoreboardSection.classList.remove('hidden');
+
+            setupRound();
+            renderScoreboard();
+        }
+
+        function setupRound() {
+            hideMessage(roundMessage); // Hide previous round messages
+            currentRoundSpan.textContent = currentRound;
+            currentEngineSpan.textContent = `Double-${getEngineForRound(currentRound)}`;
+
+            // Create score input fields for the current round
+            scoreInputArea.innerHTML = ''; // Clear previous inputs
+            players.forEach((player, index) => {
+                const div = document.createElement('div');
+                div.className = 'flex items-center space-x-2';
+
+                const label = document.createElement('label');
+                label.htmlFor = `score-player-${index}`;
+                label.textContent = `${player.name}:`;
+                label.className = 'w-1/3 text-sm font-medium text-gray-700 text-right';
+
+                const input = document.createElement('input');
+                input.type = 'number';
+                input.id = `score-player-${index}`;
+                input.className = 'w-2/3'; // Adjusted width
+                input.min = "0"; // Scores can't be negative
+                input.placeholder = "Enter score";
+                input.required = true; // Make input required
+
+                div.appendChild(label);
+                div.appendChild(input);
+                scoreInputArea.appendChild(div);
+            });
+             // Focus the first input field
+            const firstInput = scoreInputArea.querySelector('input');
+            if (firstInput) {
+                firstInput.focus();
+            }
+        }
+
+        function submitRoundScores() {
+            hideMessage(roundMessage);
+            const scoreInputs = scoreInputArea.querySelectorAll('input[type="number"]');
+            const roundScores = [];
+            let validInput = true;
+
+            scoreInputs.forEach((input, index) => {
+                const scoreValue = input.value.trim();
+                if (scoreValue === '' || isNaN(scoreValue) || parseInt(scoreValue) < 0) {
+                    validInput = false;
+                    input.classList.add('border-red-500'); // Highlight invalid input
+                } else {
+                    input.classList.remove('border-red-500');
+                    roundScores[index] = parseInt(scoreValue);
+                }
+            });
+
+            if (!validInput) {
+                showMessage(roundMessage, 'Please enter a valid, non-negative score for all players.');
+                return;
+            }
+
+            // Update player scores
+            players.forEach((player, index) => {
+                player.scores[currentRound - 1] = roundScores[index];
+                player.total = player.scores.reduce((sum, score) => sum + (score !== null ? score : 0), 0); // Recalculate total
+            });
+
+            renderScoreboard();
+
+            // Check for game end
+            if (currentRound >= MAX_ROUNDS) {
+                endGame();
+            } else {
+                currentRound++;
+                setupRound(); // Set up for the next round
+            }
+        }
+
+        function renderScoreboard() {
+            // --- Render Header ---
+            scoreboardHead.innerHTML = ''; // Clear existing header
+            const headerRow = document.createElement('tr');
+            const playerHeader = document.createElement('th');
+            playerHeader.textContent = 'Player';
+            playerHeader.className = 'sticky left-0 bg-gray-200 z-10'; // Sticky player column
+            headerRow.appendChild(playerHeader);
+
+            for (let i = 1; i <= MAX_ROUNDS; i++) {
+                const roundHeader = document.createElement('th');
+                roundHeader.textContent = `R${i} (D-${getEngineForRound(i)})`;
+                 // Highlight current round column
+                if(i === currentRound && gameActive) {
+                    roundHeader.classList.add('bg-indigo-100');
+                }
+                headerRow.appendChild(roundHeader);
+            }
+            const totalHeader = document.createElement('th');
+            totalHeader.textContent = 'Total';
+            headerRow.appendChild(totalHeader);
+            scoreboardHead.appendChild(headerRow);
+
+            // --- Render Body (Player Scores) ---
+            scoreboardBody.innerHTML = ''; // Clear existing body
+            players.forEach(player => {
+                const playerRow = document.createElement('tr');
+                playerRow.className = 'even:bg-white odd:bg-gray-50';
+
+                const nameCell = document.createElement('td');
+                nameCell.textContent = player.name;
+                nameCell.className = 'font-medium text-gray-800 sticky left-0 z-10'; // Sticky player column
+                 // Match row background for stickiness
+                nameCell.classList.add(playerRow.classList.contains('even:bg-white') ? 'bg-white' : 'bg-gray-50');
+                playerRow.appendChild(nameCell);
+
+                player.scores.forEach((score, index) => {
+                    const scoreCell = document.createElement('td');
+                    scoreCell.textContent = score !== null ? score : '-'; // Display '-' for rounds not played
+                     // Highlight current round cell
+                    if((index + 1) === currentRound && gameActive) {
+                         scoreCell.classList.add('bg-indigo-100');
+                    }
+                    playerRow.appendChild(scoreCell);
+                });
+
+                const totalCell = document.createElement('td');
+                totalCell.textContent = player.total;
+                totalCell.className = 'font-bold';
+                playerRow.appendChild(totalCell);
+
+                scoreboardBody.appendChild(playerRow);
+            });
+
+            // --- Render Footer (Totals - Optional, but can be useful) ---
+            // Currently, totals are per player. A grand total isn't usually tracked in Mexican Train.
+            // scoreboardFoot.innerHTML = ''; // Clear existing footer if needed
+        }
+
+        function endGame() {
+            gameActive = false;
+            gameSection.classList.add('hidden');
+            gameOverSection.classList.remove('hidden');
+
+            // Determine winner(s) - lowest score
+            let minScore = Infinity;
+            players.forEach(p => {
+                if (p.total < minScore) {
+                    minScore = p.total;
+                }
+            });
+
+            const winners = players.filter(p => p.total === minScore);
+
+            if (winners.length === 1) {
+                winnerAnnouncement.textContent = `Winner: ${winners[0].name} with ${minScore} points!`;
+            } else if (winners.length > 1) {
+                const winnerNames = winners.map(p => p.name).join(', ');
+                winnerAnnouncement.textContent = `It's a tie between ${winnerNames} with ${minScore} points!`;
+            } else {
+                winnerAnnouncement.textContent = 'Game finished, but something went wrong determining the winner.'; // Should not happen
+            }
+             // Final render to remove round highlighting
+            renderScoreboard();
+        }
+
+        function restartGame() {
+            // Reset game state
+            players = [];
+            currentRound = 0;
+            gameActive = false;
+
+            // Reset UI
+            setupSection.classList.remove('hidden');
+            gameSection.classList.add('hidden');
+            scoreboardSection.classList.add('hidden');
+            gameOverSection.classList.add('hidden');
+
+            playerListDiv.innerHTML = '<p class="text-sm text-gray-500">Players added will appear here.</p>';
+            playerNameInput.value = '';
+            hideMessage(setupMessage);
+            hideMessage(roundMessage);
+            updateStartGameButton();
+            scoreboardHead.innerHTML = '';
+            scoreboardBody.innerHTML = '';
+            scoreboardFoot.innerHTML = '';
+        }
+
+        // --- Event Listeners ---
+        addPlayerBtn.addEventListener('click', addPlayer);
+        // Allow adding player by pressing Enter in the input field
+        playerNameInput.addEventListener('keypress', (event) => {
+            if (event.key === 'Enter') {
+                addPlayer();
+            }
+        });
+
+        startGameBtn.addEventListener('click', startGame);
+        submitRoundBtn.addEventListener('click', submitRoundScores);
+        // Allow submitting scores by pressing Enter in any score input
+         scoreInputArea.addEventListener('keypress', (event) => {
+             if (event.key === 'Enter' && event.target.tagName === 'INPUT') {
+                 submitRoundScores();
+             }
+         });
+
+        restartGameBtn.addEventListener('click', restartGame);
+
+        // --- Initial Setup ---
+        renderPlayerList(); // Initial render in case of refresh with state (though state isn't saved here)
+        updateStartGameButton(); // Ensure button state is correct on load
+
+    </script>
+</body>
+</html>
